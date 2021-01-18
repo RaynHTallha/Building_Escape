@@ -1,8 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "OpenDoor.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/PlayerController.h"
 
 
 // Sets default values for this component's properties
@@ -23,7 +24,14 @@ void UOpenDoor::BeginPlay()
 
 	InitialYaw = GetOwner()-> GetActorRotation().Yaw;
 	CurrentYaw = InitialYaw;
-	TargetYaw = InitialYaw + 90.f;
+	OpenAngle += InitialYaw;
+
+	if(!PressurePlate)
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s Has unused OpenDoor Compotnent"), *GetOwner()->GetName());
+	}
+
+	ActorThatOpens = GetWorld()->GetFirstPlayerController()->GetPawn();
 }
 
 
@@ -32,21 +40,35 @@ void UOpenDoor::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	//float MyFloat = 90.f;
+	if (PressurePlate && PressurePlate->IsOverlappingActor(ActorThatOpens))
+	{
+		OpenDoor(DeltaTime);	
+		DoorLastOpen = GetWorld()->GetTimeSeconds();
+	}
+	else
+	{	
+		if ((DoorLastOpen + DoorCloseDelay) < GetWorld()->GetTimeSeconds())
+		{
+			CloseDoor(DeltaTime);
+		}
+		
+		
+	}
 	
-	//GetOwner()-> SetActorRotation(OpenDoor);
-	UE_LOG(LogTemp, Warning, TEXT("%s"),*GetOwner()->GetActorRotation().ToString());
-	UE_LOG(LogTemp, Warning, TEXT("Yaw is: %f"), GetOwner()-> GetActorRotation().Yaw);
-	CurrentYaw = FMath::Lerp(CurrentYaw, TargetYaw, 0.02f);
+}
+
+void UOpenDoor::OpenDoor(float DeltaTime)
+{
+	CurrentYaw = FMath::Lerp(CurrentYaw, OpenAngle, DeltaTime * DoorOpenSpeed);
 	FRotator DoorRotation = GetOwner()-> GetActorRotation();
 	DoorRotation.Yaw = CurrentYaw;
 	GetOwner()-> SetActorRotation(DoorRotation);
-	//Set Actor Rotation
-	
-	//FRotator OpenDoor(0.f, 0.f, 0.f);
-	//OpenDoor.Yaw = FMath::Lerp(CurrentYaw, TargetYaw, 0.02f);
-	//GetOwner()->SetActorRotation(OpenDoor);
-
-	// ...
 }
 
+void UOpenDoor::CloseDoor(float DeltaTime)
+{
+	CurrentYaw = FMath::Lerp(CurrentYaw, InitialYaw, DeltaTime * DoorCloseSpeed);
+	FRotator DoorRotation = GetOwner()-> GetActorRotation();
+	DoorRotation.Yaw = CurrentYaw;
+	GetOwner()-> SetActorRotation(DoorRotation);
+}
